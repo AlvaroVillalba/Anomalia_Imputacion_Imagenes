@@ -1,0 +1,303 @@
+---
+title: "NoteBook Anomalías - ML Imagenes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+##### Realizado por:
+
+- **Nestor Jardany Serrano Rojas**, [GitHub](https://github.com/jardanys)
+
+<br/>
+
+
+## DETECCIÓN ANOMALÍAS TODAS COMPONENTES PCA
+
+<div class=text-justify>
+En este notebook se observa las anomalias de una base de datos con de 198 animales entre perros y gatos, a continuación se carga la base de datos y se muestra una función para graficar un animal. 
+</div>
+
+```{r data, echo=TRUE}
+load("gatosperros.RData")
+plotcd <- function(v){
+  x <- matrix(v,64,64)
+  image(1:65,1:65,t(apply(x,2,rev)),asp=1,xaxt="n",yaxt="n",
+        col=grey((0:255)/255),ann=FALSE,bty="n")
+}
+
+```
+
+<br/>
+<div class=text-justify>
+Se genera una partición de base para entrenamiento y base para pruebas o testing. Se utiliza un muestreo aleatorio simple con una semilla de "7931". Este procedimiento se realiza para los 99 Gatos y 99 Perros de la base de datos.
+</div>
+
+```{r f, echo=TRUE}
+set.seed(7931)
+ind.gatostest <- sample(1:99, 9, replace = FALSE)
+gatos.test <- dm[ind.gatostest, ]
+gatos.train <- dm[1:99, ][-ind.gatostest, ]
+ind.perrostest <- sample(1:99, 9, replace = FALSE)
+perros.test <- dm[100:198, ][ind.perrostest, ]
+perros.train <- dm[100:198, ][-ind.perrostest, ]
+```
+
+
+<br/>
+<div class=text-justify>
+Se gráfica el gato promedio, este se realiza para tener una escala de medición en la aplicación de componentes principales. Obtener el origen de los datos en el PCA.
+</div>
+```{r pressure, echo=TRUE}
+centro.gatos <- colMeans(gatos.train)
+plotcd(round(centro.gatos))
+```
+
+<br/>
+
+Por lo anterior se centralizan las bases de entrenamiento y pruebas con el Gato Promedio.
+
+```{r w, echo=TRUE}
+gatos.train <- gatos.train - matrix(centro.gatos,nrow(gatos.train),ncol(gatos.train),byrow=TRUE)
+gatos.test <- gatos.test - matrix(centro.gatos,nrow(gatos.test),ncol(gatos.test),byrow=TRUE)
+perros.train <- perros.train - matrix(centro.gatos,nrow(perros.train),ncol(perros.train),byrow=TRUE)
+perros.test <- perros.test - matrix(centro.gatos,nrow(perros.test),ncol(perros.test),byrow=TRUE)
+```
+<br/>
+
+A continuación se realiza un PCA y se muestra el % de varianza Acumulada se observa para:
+
+- 50% de varianza 2 componentes.
+- 80% de varianza 17 componentes.
+- 90% de varianza 28 componentes.
+- 95% de varianza 43 componentes.
+- 98% de varianza 64 componentes
+
+Como se ve en la siguiente gráfica:
+
+```{r while, echo=TRUE}
+pc <- prcomp(gatos.train)
+matriz.proyec <- pc$rotation
+plot(cumsum(pc$sdev^2)/sum(pc$sdev^2), xlab = "Componentes", ylab = "Varianza Acumulada", main = "% Acum Varianza")
+abline(h=0.5, col="red")
+abline(h=0.8, col="blue")
+abline(h=0.9, col="green")
+abline(h=0.95, col="yellow")
+abline(h=0.99, col="pink")
+```
+<br/>
+
+### Proyecciones para Gatos Entrenamiento
+<div class=text-justify>
+Teniendo en cuenta la base de entrenamiento se calcula una proyección utilizando PCA y los residuos entre la imagen original y los residuos. En el código descrito a continuación se observan los siguientes pasos:
+- Proyecciones dadas a partir de la matriz de proyecciones del PCA.
+- Residuos generados de la base y las proyecciones.
+- Se realiza la comparación de la imagen originas, la imagen de la proyección y los residuos (Original - proyección)
+
+Como se observa los residuos para la base de entrenamiento son muy cercanos a cero, porque es la base utilizada para realizar las proyecciones.
+</div>
+```{r pressure1, echo=TRUE}
+gatos.train.proyec <- (gatos.train %*% matriz.proyec) %*% t(matriz.proyec)
+gatos.train.resid <- gatos.train - gatos.train.proyec
+gatos.train.resid.norm.compall <- apply(gatos.train.resid, 1, norm, type="2")
+par(pty="s")
+layout(matrix(1:3,1,3))
+ind <- sample(1:nrow(gatos.train),1)
+plotcd(round(gatos.train[ind,]))
+title(xlab = "Imagen Original")
+plotcd(round(gatos.train.proyec[ind,]))
+title(xlab="Proyección Base Gatos Entrenamiento")
+plotcd(round(gatos.train.resid[ind,]))
+title(xlab = "Residuo proyección")
+
+```
+<br/>
+
+### Proyecciones para Gatos Prueba
+<div class=text-justify>
+Se realiza el mismo procedimiento para la base de pruebas de Gatos y se observa los residuos aunque se mantiene la imagen de gato aproximada.
+</div>
+```{r data_MeanPeso, echo=TRUE}
+gatos.test.proyec <- (gatos.test %*% matriz.proyec) %*% t(matriz.proyec)
+gatos.test.resid <- gatos.test - gatos.test.proyec
+gatos.test.resid.norm.compall <- apply(gatos.test.resid, 1, norm, type="2")
+par(pty="s")
+layout(matrix(1:3,1,3))
+ind <- sample(1:nrow(gatos.test),1)
+plotcd(round(gatos.test[ind,]))
+title(xlab = "Imagen Original")
+plotcd(round(gatos.test.proyec[ind,]))
+title(xlab="Proyección Base Gatos Entrenamiento")
+plotcd(round(gatos.test.resid[ind,]))
+title(xlab = "Residuo proyección")
+```
+<br/>
+
+### Proyecciones para Perros Entrenamiento
+<div class=text-justify>
+Se realiza el mismo procedimiento para la base de entrenamiento de Perros y se observa como la proyección tiene forma de gato, porque el entrenamiento se realizó con los gatos.
+</div>
+
+```{r pressure10, echo=TRUE}
+perros.train.proyec <- (perros.train %*% matriz.proyec) %*% t(matriz.proyec)
+perros.train.resid <- perros.train - perros.train.proyec
+perros.train.resid.norm.compall <- apply(perros.train.resid, 1, norm, type="2")
+par(pty="s")
+layout(matrix(1:3,1,3))
+ind <- sample(1:nrow(perros.train),1)
+plotcd(round(perros.train[ind,]))
+title(xlab = "Imagen Original")
+plotcd(round(perros.train.proyec[ind,]))
+title(xlab="Proyección Base Gatos Entrenamiento")
+plotcd(round(perros.train.resid[ind,]))
+title(xlab = "Residuo proyección")
+```
+
+<br/>
+
+### Errores en las proyecciones de Entrenamiento Gatos, Pruebas Gatos y Entrenamiento Perros
+
+Se observa como el promedio de los errores de la base de entrenamiento son muy cercanos a cero, los errores de la base de Perros es mucho mayor a la prueba de Gatos. Lo cual tiene sentido los Perros son los de mayor error.
+
+```{r w10, echo=TRUE}
+mean(gatos.train.resid.norm.compall)
+mean(gatos.test.resid.norm.compall)
+mean(perros.train.resid.norm.compall)
+```
+<br/>
+
+## MODELO ANOMALÍAS 15 COMPONENTES PCA
+
+A continaución se evalua el modelo en terminos del error teniendo en cuenta 15 componentes que obtienen el 75% de la varianza de todas las variables.
+
+### Proyecciones para Gatos Entrenamiento 15 Componentes
+
+Se observa un residuo de la proyección en la base de entrenamiento relativamente alto.
+
+```{r while10, echo=TRUE}
+gatos.train.proyec <- (gatos.train %*% matriz.proyec[,c(1,15)]) %*% t(matriz.proyec[,c(1,15)])
+gatos.train.resid <- gatos.train - gatos.train.proyec
+gatos.train.resid.norm.comp15 <- apply(gatos.train.resid, 1, norm, type="2")
+par(pty="s")
+layout(matrix(1:3,1,3))
+ind <- sample(1:nrow(gatos.train),1)
+plotcd(round(gatos.train[ind,]))
+title(xlab = "Imagen Original")
+plotcd(round(gatos.train.proyec[ind,]))
+title(xlab="Proyección Base Gatos Entrenamiento")
+plotcd(round(gatos.train.resid[ind,]))
+title(xlab = "Residuo proyección")
+```
+<br/>
+
+### Proyecciones para Gatos Pruebas 15 Componentes
+
+<div class=text-justify>
+Se realiza el mismo procedimiento para la base de pruebas de Gatos y se observa los residuos aunque se mantiene la imagen de gato aproximada.
+</div>
+
+```{r pressure100, echo=TRUE}
+gatos.test.proyec <- (gatos.test %*% matriz.proyec[,c(1,15)]) %*% t(matriz.proyec[,c(1,15)])
+gatos.test.resid <- gatos.test - gatos.test.proyec
+gatos.test.resid.norm.comp15 <- apply(gatos.test.resid, 1, norm, type="2")
+par(pty="s")
+layout(matrix(1:3,1,3))
+ind <- sample(1:nrow(gatos.test),1)
+plotcd(round(gatos.test[ind,]))
+title(xlab = "Imagen Original")
+plotcd(round(gatos.test.proyec[ind,]))
+title(xlab="Proyección Base Gatos Entrenamiento")
+plotcd(round(gatos.test.resid[ind,]))
+title(xlab = "Residuo proyección")
+```
+<br/>
+
+### Proyecciones para Perros Entrenamiento 15 Componentes
+
+<div class=text-justify>
+Se realiza el mismo procedimiento para la base de entrenamiento de Perros y se observa los residuos, la imagen de gato se observa en la proyección y los residuos son altos.
+</div>
+
+```{r pressure1000, echo=TRUE}
+perros.train.proyec <- (perros.train %*% matriz.proyec[,c(1,15)]) %*% t(matriz.proyec[,c(1,15)])
+perros.train.resid <- perros.train - perros.train.proyec
+perros.train.resid.norm.comp15 <- apply(perros.train.resid, 1, norm, type="2")
+par(pty="s")
+layout(matrix(1:3,1,3))
+ind <- sample(1:nrow(perros.train),1)
+plotcd(round(perros.train[ind,]))
+title(xlab = "Imagen Original")
+plotcd(round(perros.train.proyec[ind,]))
+title(xlab="Proyección Base Gatos Entrenamiento")
+plotcd(round(perros.train.resid[ind,]))
+title(xlab = "Residuo proyección")
+```
+<br/>
+
+### Errores en las proyecciones de Entrenamiento Gatos, Pruebas Gatos y Entrenamiento Perros, 15 Componentes
+
+Se observa como el promedio de los errores de la base de entrenamiento de Gatos son los más bajos, los errores de la base de Perros es el más alto. Aunque la diferencia no es msignificativa y los residuos son mayores a los anteriores. 
+
+A continuación se muestra una comparación de los residuos utilizando todos los componentes vs 15 componentes que recogen el 75% de la varianza.
+
+```{r data_knn, echo=TRUE}
+mean(gatos.train.resid.norm.compall); mean(gatos.train.resid.norm.comp15)
+mean(gatos.test.resid.norm.compall); mean(gatos.test.resid.norm.comp15)
+mean(perros.train.resid.norm.compall); mean(perros.train.resid.norm.comp15)
+```
+<br/>
+
+## ALGORITMO DE CLASIFICACIÓN
+
+Teniendo en cuenta los residuos de los modelos con todas y 15 componentes, se realiza una tabla que agrupa los resultados obtenidos anteriormente.
+
+```{r data_classi, echo=TRUE}
+data <- data.frame("animal" = c(rep(1,99), rep(0,90)), residuos_comp_all = c(gatos.train.resid.norm.compall, gatos.test.resid.norm.compall, perros.train.resid.norm.compall), residuos_com_15 = c(gatos.train.resid.norm.comp15, gatos.test.resid.norm.comp15, perros.train.resid.norm.comp15))
+data$animal_nombre <- ifelse(data$animal==1, "Gato", "Perro")
+data$id <- 1:length(data$animal)
+data$type <- c(rep(1,90),rep(2,9),rep(3,90))
+data$type_bd <- ifelse(data$type==1, "Gato Train", ifelse(data$type==2, "Gato Test", "Perro Train"))
+```
+
+<br/>
+
+Se crea un algoritmo con limite de residuo de 2250, este número divide al animal entre Perro o Gato.
+
+Las siguientes graficas muestran los residuos de todos los componentes y de 15 componentes. 
+
+- La primera gráfica clasifica los Perros y los gatos de acuerdo a los residuos.
+- La segunda gráfica clasifica de acuerdo a las bases de Entrenamiento Gatos, Pruebas Gatos y Entrenamiento Perros utilizando todos los componentes.
+- La tercera gráfica muestra las bases de Entrenamiento Gatos, Pruebas Gatos y Entrenamiento Perros para 15 componentes.
+
+Se observa como los 15 componentes no clasifica entre perros y gatos. Si se utilizan todos los componentes existen algunos animales que no se clasifican adecuadamente.
+
+```{r garf_classi, echo=TRUE}
+ggplot(data, aes(id, residuos_comp_all)) + geom_point(aes(colour=animal_nombre))
+ggplot(data, aes(id, residuos_comp_all)) + geom_point(aes(colour=type_bd)) 
+ggplot(data, aes(id, residuos_com_15)) + geom_point(aes(colour=type_bd)) 
+```
+
+El error de clasificación del modelo utilizando todas las componentes es de 22%. Es un error significativo y se puede concluir que no el modelo no clasifica adecuadamente los Perros de los Gatos.
+
+```{r error, echo=TRUE}
+data$limite <- ifelse(data$residuos_comp_all>2250,0,1)
+data$error <- ifelse(data$animal==data$limite, 0, 1)
+sum(data$error) / length(data$animal)
+```
+
+El error de clasificación del modelo utilizando 15 componentes es de 49%. Es un error significativo y se puede concluir que el modelo no clasifica adecuadamente los Perros de los Gatos.
+
+```{r error_1, echo=TRUE}
+data$limite_15 <- ifelse(data$residuos_com_15>2250,0,1)
+data$error_15 <- ifelse(data$animal==data$limite_15, 0, 1)
+sum(data$error_15) / length(data$animal)
+```
+
+El modelo utilizando los Gatos de entrenamiento no discrimina adecuadamente.
+
+
+<br/>
+

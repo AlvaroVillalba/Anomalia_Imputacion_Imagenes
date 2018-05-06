@@ -1,0 +1,154 @@
+---
+title: "NoteBook MDS - ML Imagenes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(survey)
+library(sae)
+library(TeachingSampling)
+library(dplyr)
+library(kableExtra)
+library(knitr)
+library(GGally)
+library(survey)
+library(TeachingSampling)
+library(dplyr)
+library(readxl)
+library(rgeos)
+library(sp)
+library(gstat)
+library(dplyr)
+library(ggplot2)
+library(devtools)
+library(ggwithimages)
+library(leaflet)
+options(scipen = 999)
+```
+
+##### Realizado por:
+
+- **Nestor Jardany Serrano Rojas**, [GitHub](https://github.com/jardanys)
+
+<br/>
+
+## MDS
+
+Se seleccionan 6 ciudades al azar de la página [enlace](http://es.distancias.himmera.com/distancia_entre_ciudades-colombia_mapas_carreteras/)  y se comparan las distancias por carretera y en línea recta (avión).
+
+El objetivo es determinar la mejor estimación de las distancias geoespacial dadas las distancias en carretera y linea recta de las seis ciudades.
+
+## MDS - Distancias en carretera
+
+De la página mencionada se obtienen las distancias y matriz de distancias en carretera de siguientes ciudades:
+
+- Bogotá
+- Cartagena
+- Villeta
+- Barbosa
+- Yopal
+- San Gíl
+
+```{r distancias_carretera, echo=TRUE}
+ciudades <- c("Bogotá", "Cartagena", "Villeta", "Barbosa", "Yopal", "San Gil")
+D <- matrix(0,length(ciudades),length(ciudades))
+D[1, 2:6] <- c(1060, 90, 185, 356, 300)
+D[2, 3:6] <- c(994, 860, 1133, 751)
+D[3, 4:6] <- c(260, 435, 375)
+D[4, 5:6] <- c(275, 115)
+D[5, 5:6] <- c(381)
+D <- D+t(D)
+colnames(D) <- ciudades
+rownames(D) <- ciudades
+```
+
+
+### Multi-Dimensional Scaling Carretera
+
+Se obtiene la estimación multidimensional esclada de la matriz de distancias de las 6 ciudades mencionadas. Se guarda en una matriz X con una posición en el eje "X" y en el eje "Y".
+
+```{r Dimensional_scaling_carretera, echo=TRUE}
+n <- length(ciudades)
+uno <- matrix(1,n,1)
+I <- diag(n)
+J <- I - (uno%*%t(uno))/n
+B <- - J%*%D^2%*%J/2
+eigen.B <- eigen(B, symmetric=TRUE)
+E <- eigen.B$vectors[,1:2]
+L <- matrix(0,2,2)
+diag(L) <- eigen.B$values[1:2]
+X <- E%*%sqrt(L)
+rownames(X) <- ciudades
+mm <- max(abs(X))
+data <- as.data.frame(X)
+```
+
+```{r puntos_carretera, echo=TRUE}
+colombia <- png::readPNG("colombia.png")
+ggplot(data, aes(800,800)) + geom_line_with_image(colombia) + 
+  geom_point(aes(V2,-V1)) + xlim(-800,1000) + ylim(-1600,1100) +
+  geom_label(aes(V2,-V1,label=rownames(data)), size=2) + xlab("long") + ylab("lat") + 
+  ggtitle("Mapa con los Puntos MDS en Carretera")
+```
+
+
+## MDS - Distancias en linea (Aeria)
+
+De la página mencionada se obtienen las distancias y matriz de distancias en carretera de siguientes ciudades:
+
+- Bogotá
+- Cartagena
+- Villeta
+- Barbosa
+- Yopal
+- San Gíl
+
+```{r distancias_aeria, echo=TRUE}
+ciudades <- c("Bogotá", "Cartagena", "Villeta", "Barbosa", "Yopal", "San Gil")
+D <- matrix(0,length(ciudades),length(ciudades))
+D[1, 2:6] <- c(650, 55, 145, 198, 230)
+D[2, 3:6] <- c(609, 536, 635, 515)
+D[3, 4:6] <- c(139, 232, 226)
+D[4, 5:6] <- c(149, 87)
+D[5, 5:6] <- c(156)
+D <- D+t(D)
+colnames(D) <- ciudades
+rownames(D) <- ciudades
+```
+
+
+### Multi-Dimensional Scaling Carretera
+
+Se obtiene la estimación multidimensional esclada de la matriz de distancias de las 6 ciudades mencionadas. Se guarda en una matriz X con una posición en el eje "X" y en el eje "Y".
+
+```{r Dimensional_scaling_aeria, echo=TRUE}
+n <- length(ciudades)
+uno <- matrix(1,n,1)
+I <- diag(n)
+J <- I - (uno%*%t(uno))/n
+B <- - J%*%D^2%*%J/2
+eigen.B <- eigen(B, symmetric=TRUE)
+E <- eigen.B$vectors[,1:2]
+L <- matrix(0,2,2)
+diag(L) <- eigen.B$values[1:2]
+X <- E%*%sqrt(L)
+rownames(X) <- ciudades
+mm <- max(abs(X))
+data <- as.data.frame(X)
+```
+
+```{r puntos_aeria, echo=TRUE}
+colombia <- png::readPNG("colombia.png")
+ggplot(data, aes(800,800)) + geom_line_with_image(colombia) + 
+  geom_point(aes(V2,-V1)) + xlim(-800,900) + ylim(-1500,1100) +
+  geom_label(aes(V2,-V1,label=rownames(data)), size=2) + xlab("long") + ylab("lat") + 
+  ggtitle("Mapa con los Puntos MDS en Carretera")
+```
+
+
+
+
+
+
