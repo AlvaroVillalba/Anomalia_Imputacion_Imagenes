@@ -26,7 +26,7 @@ options(scipen = 999)
 
 ##### Realizado por:
 
-- **Nestor Jardany Serrano Rojas**, [GitHub](https://github.com/jardanys)
+- **Nestor Jardany Serrano Rojas**, [GitHub](https://github.com/jardanys/Anomalia_Imputacion_Imagenes)
 
 <br/>
 
